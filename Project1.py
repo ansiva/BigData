@@ -101,6 +101,8 @@ def most_used_words(list_,number):
 
 print(most_used_words(word_count,20))
 #O/p;
+
+#Most Used 20 words in the file with count
 # [('the', 73641), ('to', 61308), ('of', 52996), ('and', 41009), ('I', 38663), ('in', 33475), ('you', 29527), 
 # ('this', 26616), ('a', 25180), ('for', 23119), ('your', 22427), ('my', 21608), ('that', 19074), 
 # ('will', 18801)  , ('as', 17535), ('is', 16419), ('be', 14207), ('with', 13866), ('me', 11972), ('have', 10990)]
@@ -117,11 +119,11 @@ print(most_used_words(word_count,20))
 #5
 #My algorithm also calculates some codes with some special characters, which are quite irrelevant to the word counting
 #problem. So, if I am able to filter the file into file of just emails with words, the time complexity of my program would decrease.
-#The algorithm can also be improved by having more than one map function too.
+#That creates a better algorithm.
+#The algorithm can also be improved by having more than one map function too where I would only accept chunks of files.
           
 
 
-        
         
 
 
