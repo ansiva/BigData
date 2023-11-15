@@ -183,7 +183,46 @@ for rule in association_rules:
      conf=rule[2]
      print(f"Conf({antecedent_str} -> {consequent_str}) : {conf} ")
 
+'''Code below can be uncommented and can be printed to look at confidence between frequent
+itemsets. I have printed above the confidence within every frequent itemset as I asked the Professor '''
+
+
+'''
+The only reason I have commented is because it takes a lot of time to run, almost 20-25 mins as it goes through atleast 20000 
+possible combinations'''
+
+# for ia in final_item_set_list:
+#   for ja in final_item_set_list:
+#     c1=0
+#     c2=0
+#     if sorted(ia)!=sorted(ja):
+#       ia=set(ia)
+#       ja=set(ja)
+#       a=ia.union(ja)
       
+#       for xa in final_lst:
+#         if all(elem in xa for elem in a):
+          
+#           c1+=1
+#         if all(elem in xa for elem in ia):
+#           c2+=1
+
+#       conf=c1/c2
+#       #print(c1,c2)
+#       #print(conf)
+#       if conf>=0.06:
+#        ia=list(ia)
+#        ja=list(ja)
+#        for i in ia:
+#          tally=1
+#          if i in ja:
+#            tally*=0
+#            break
+#        if (tally==0):
+#            print("Conf(",ia,"------>",ja,") =",conf)      
+
+
+#Reasoning       
 
 #1.
 
