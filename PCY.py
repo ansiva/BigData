@@ -211,6 +211,38 @@ for rule in association_rules:
      conf=(rule[2])
      print(f"Conf({antecedent_str} -> {consequent_str}) : {conf} ")
 
+''' 
+Below Uncommented code is again for confidence between various frequent itemsets
+'''
+# for ia in final_item_set_list:
+#   for ja in final_item_set_list:
+#     c1=0
+#     c2=0
+#     if sorted(ia)!=sorted(ja):
+#       ia=set(ia)
+#       ja=set(ja)
+#       a=ia.union(ja)
+      
+#       for xa in final_lst:
+#         if all(elem in xa for elem in a):
+          
+#           c1+=1
+#         if all(elem in xa for elem in ia):
+#           c2+=1
+
+#       conf=c1/c2
+#       #print(c1,c2)
+#       #print(conf)
+#       if conf>=0.06:
+#        ia=list(ia)
+#        ja=list(ja)
+#        for i in ia:
+#          tally=1
+#          if i in ja:
+#            tally*=0
+#            break
+#        if (tally==0):
+#            print("Conf(",ia,"------>",ja,") =",conf)
 
 
 # My PCY algorithm produced the same output as the Apriori algorithm, but the thing is it was faster than the apriori algorithm. It computed
