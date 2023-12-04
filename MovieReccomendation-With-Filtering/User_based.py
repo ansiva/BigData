@@ -1,5 +1,6 @@
-import numpy as np
 
+import numpy as np
+from math import sqrt
 import random
 from collections import defaultdict
 random.seed(350)
@@ -199,19 +200,15 @@ def evaluate_model(predictions, hid_data):
                 squared_errors.append(error)
 
     mse = np.mean(squared_errors)
-    rmse = sqrt(mse)
+    #rmse = sqrt(mse)
     
-    return rmse
+    return mse
 
 
 
 
 predictions = predict_ratings(train_data, hidden_data, k=450)
-print(evaluate_model(predictions,hidden_data))
-train_data=normalize_ratings(train_data)
-hidden_data=normalize_ratings(hidden_data)
-predictions = predict_ratings(train_data, hidden_data, k=450)
-print(evaluate_model(predictions,hidden_data))
+print(evaluate_model(predictions,hidden_data)) #Mean Squared Error
 
 for j in predictions:
     user=j
@@ -220,3 +217,22 @@ for j in predictions:
         rating=k[1]
 
         print("Predicted Rating - User: ",user, ", Movie: ", movie, "Rating: ", rating)
+
+
+#The model predicts most users' rating almost close to accurately, however, it doesn't predicts inaccurate ratings for some user and items. The mean squared error is affected by this factor of inaccurate ratings to few predictions.
+#Some inaccuracy in this model could be because of the limitations listed below
+
+
+
+
+# Strengths:
+# User-based filtering is very helpful when there a lot of user present in the dataset or if there a lot of similar
+# users in the dataset (Like have similar taste in movies). If a new user enters the database, the model
+# would be able to predict the rating of that user. The model provides personalized recommendations by identifying users with similar tastes.
+# The model does a decent job in predicting the rating of the user within a ball park range for most users.
+
+#Limitations
+#The main limitation I see for this model is that the model doesn't do a great job with a sparse dataset. So if a group of users don't rate a lot
+#of movies then, it results in inaccuracy of the model. The time complexity would be really worse if there is a lot of data provided to the model.
+# The model might do a bad job in predicting a user's rating with a lower amount of movie ratings. 
+# The model might not adapt to the dynamic change of user preferences.
