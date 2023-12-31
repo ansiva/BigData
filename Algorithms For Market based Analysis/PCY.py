@@ -213,9 +213,4 @@ for rule in association_rules:
 
 
 
-# My PCY algorithm produced the same output as the Apriori algorithm, but the thing is it was faster than the apriori algorithm. It computed
-# the correct algorithm in less than 10 seconds, while my Apriori algorithm took a lot of time to compute the frequent itemsets and much more time 
-# to get the confidence of each association rule.
 
-#This hash-based methods helps PCY scale better to large datasets and improves its runtime efficiency in comparison to Apriori, 
-# particularly when dealing with sparse datasets where most itemsets are infrequent. 
