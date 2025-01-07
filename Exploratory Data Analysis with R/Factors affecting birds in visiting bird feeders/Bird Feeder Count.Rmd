@@ -1,1 +1,433 @@
+---
+title: "Bird Feeders"
+output:
+  html_document: default
+  pdf_document: default
+date: '2024-12-07'
+---
+
+```{r setup, include=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(tidyverse)
+cb_palette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+
+```{r message=FALSE, warning=FALSE,include=FALSE}
+#reading in bird data.
+#LOC_ID is unique ID for location. PROJ_PERIOD_ID is also used to merge with 
+#HOW_MANY is an int with how many birds visited that day.
+bird = read.csv("bird1.csv",header=TRUE)
+bird =  bird[c("LOC_ID","PROJ_PERIOD_ID","HOW_MANY")]
+#Grouping by location and period to sum the counts
+birds = bird %>% 
+  group_by(LOC_ID,PROJ_PERIOD_ID) %>%
+  summarise(count = sum(HOW_MANY),
+            .groups='drop')
+
+#reading in site data.
+#Merging on LOC_ID. cats, dogs, squirrels, and humans are all factors. 
+#Housing_density is categorical
+site = read.csv("sites.csv",header=TRUE)
+site = site[c("loc_id","proj_period_id","squirrels","cats","dogs","humans","housing_density")]
+names(site)[names(site)=="loc_id"] <- "LOC_ID"
+names(site)[names(site)=="proj_period_id"] <- "PROJ_PERIOD_ID"
+```
+
+```{r message=FALSE,warning=FALSE,include=FALSE}
+
+#merging on location ID and period
+site_data = merge(birds,site,by=c("LOC_ID","PROJ_PERIOD_ID"))
+
+#clearing NA values
+site_data = na.omit(site_data)
+
+site_data$housing_density = as.factor(site_data$housing_density)
+housing_density_count <- site_data %>%
+  filter(housing_density %in% c(1, 2, 3, 4)) %>%
+  group_by(housing_density) %>%
+  summarise(count = n())
+
+#We have one horrible outlier that was likely the result of misinput. 
+#It says that 260 million birds were recorded at a site over the year...
+#the next closest is 10 thousand.
+site_data = site_data[!site_data$count == 266667128,]
+
+site_data = site_data %>%
+  mutate(housing_density = recode(housing_density, "1" = "rural", "2" = "rural/suburban", "3" = "suburban", "4" = "urban"))
+
+
+```
+
+## ACTUAL MODEL
+
+Testing different count data distributions, and then testing models using interactions. 
+
+```{r message=FALSE, warning=FALSE}
+library(MASS)
+library(broom)
+
+bird.poisson = glm(count ~ PROJ_PERIOD_ID + housing_density*squirrels + housing_density*cats + housing_density*dogs, family=poisson, data = site_data)
+bird.quasipoisson = glm(count ~ PROJ_PERIOD_ID + housing_density*squirrels + housing_density*cats + housing_density*dogs, family=quasipoisson,data = site_data)
+bird.nb = glm.nb(count ~ PROJ_PERIOD_ID + housing_density*squirrels + housing_density*cats + housing_density*dogs, data = site_data)
+
+print("Model, AIC, and Deviance")
+c("Poisson",AIC(bird.poisson),deviance(bird.poisson))
+c("Quasipoisson",AIC(bird.quasipoisson),deviance(bird.quasipoisson))
+c("Negative Binomial",AIC(bird.nb),deviance(bird.nb))
+
+c("AIC with housing density and animals interaction:",AIC(glm.nb(count ~ PROJ_PERIOD_ID + housing_density*squirrels + housing_density*cats + housing_density*dogs, data = site_data)))
+c("AIC with period and housing density interaction:", AIC(glm.nb(count ~ PROJ_PERIOD_ID * housing_density + squirrels + cats + dogs, site_data)))
+c("AIC of no interactions:", AIC(glm.nb(count~PROJ_PERIOD_ID + housing_density + squirrels + cats + dogs, site_data)))
+
+site_data$fitted = fitted.values(bird.nb)
+```
+
+We find that the negative binomial model outperforms the other two significantly. 
+We also find that a model containing an interaction between housing density and the animal types outperform models with no/different interactions. 
+
+Let's look at the exponentiation of coefficients to interpret them.
+
+```{r message=FALSE, warning=FALSE}
+exp(bird.nb$coefficients)
+```
+
+Because we're looking at factors, our coefficients are relative to a base site of a bird feeder in a rural area in 2021 with no animals present. 
+
+Year-wise : We can see that post-2022 we expect a decline in count for birds, supported by the graphs of our data.
+
+There are many coefficients to go through for the housing_density and animal interaction, so let's just pick a few to explain their effect on the prediction:
+  Our intercept is 719.9. If we are predicting for a feeder that is classified as suburban, we can see the "housing_densitysuburban" coefficient is 0.835 - meaning, our bird count will be multiplied by a number < 1 and accordingly go down some. If we also observe squirrels at this site, we would multiply by the "housing_densitysuburban:squirrels" coefficient, which would barely increase our count by 1.01, and the "squirrels" coefficient, which would multiply the count by 1.21.  
+This process can be repeated for any density/animal combo (and year). 
+
+We observe the qualities that have the most effect on bird count are of the feeder is an urban (0.454) or suburban (0.592) area. Squirrels are also always a positive, but they have the most positive effect in urban areas(1.23). 
+
+## Checking model compared to actual data
+
+```{r message=FALSE, warning=FALSE,fig.width=3,fid.height=3}
+
+
+library(ggplot2)
+library(MASS)  
+library(patchwork)  
+
+
+nb.sim <- rnegbin(47693, fitted(bird.nb), theta = bird.nb$theta)
+sim <- data.frame(count = nb.sim)
+
+# Original data histogram
+plot1 <- ggplot(site_data, aes(x = count)) + 
+  geom_histogram(binwidth = 250, fill = "#E69F00", color = "black") + 
+  labs(
+    x = "Bird count",y = "Frequency",
+    title = "Bird Count Frequencies for Original Data"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+
+plot2 <- ggplot(sim, aes(x = count)) + 
+  geom_histogram(binwidth = 250, fill = "#56B4E9", color = "black") +  # Blue (colorblind-friendly)
+  labs(
+    x = "Bird count (simulated)", y = "Frequency",
+    title = "Bird Count Frequencies for Simulation"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+
+combined_plot <- plot1 + plot2 + 
+  plot_layout(ncol = 2) +  # Ensures side-by-side layout
+  plot_annotation(
+    title = "Comparison of Original and Simulated Bird Count Frequencies",
+    theme = theme(plot.title = element_text(size = 14, hjust = 0.5, margin = margin(b = 10)))
+  )
+
+
+combined_plot
+
+
+```
+
+The general shapes of our model compared to the original data looks pretty good.
+
+
+```{r message=FALSE, warning=FALSE,fig.width=8,fid.height=3}
+squirrel.plot.2021 = subset(site_data,PROJ_PERIOD_ID=="PFW_2021" & squirrels==1)
+cat.plot.2021 = subset(site_data,PROJ_PERIOD_ID=="PFW_2021" &cats==1)
+dog.plot.2021 = subset(site_data,PROJ_PERIOD_ID=="PFW_2021" & dogs==1)
+
+squirrel.plot.2021$group = "squirrel"
+cat.plot.2021$group = "cat"
+dog.plot.2021$group = "dog"
+
+plot.2021 = rbind(squirrel.plot.2021,cat.plot.2021,dog.plot.2021)
+ggplot(plot.2021, aes(x=housing_density,y=fitted, group = group,color=group)) +
+  geom_point() + labs(
+    x = "housing density",
+    y = "fitted counts",
+    title = "Fitted values with respects to housing density and animals present",
+    subtitle = "Year is 2021"
+  ) +  
+  geom_jitter(height=10,width=0.2,cex=0.4,alpha=0.2) +
+  scale_color_manual(values=cb_palette)
+```
+
+The main indication of this graph is how bird counts are divided across the different options for animal presence.
+Looking closely, each bar is a collection of the different colored points ; the top bar being blue and red, the next being all three colors, etc., which represent what animals are present at the site. This is consistent with the graph shown earlier. 
+At at every level of housing density we can observe the same trend, being, from highest to lowest count:
+  Birds and squirrels -> All 3 animals -> Just squirrels -> Dogs and squirrels -> Just cats -> Cats and dogs -> Just dogs. 
+
+## Answers
+
+We can put our coefficients and visuals together to draw some answers to our research question.
+
+First, we find that there was a harsh drop in bird count from 2022 to 2023, but other than that, general trends stay the same across all years. 
+
+Second, let's talk about animals. 
+  Squirrels being present at a site are a positive indication of bird count. Their coefficient of 1.2 as well as a positive coefficient for every housing density shows that if squirrels are present, recorded bird count goes up. A safe assumption is squirrel presence indicates a sufficient amount of food at a feeder, which in turn leads to a high bird count.
+  Cat presence is also a has a positive effect on bird count. Their coefficient of 1.1 and similar positive coefficient at every housing density shows that if cats are present, recorded bird count goes up. It's likely this is because a feeder with more birds is more likely to have a cat present, as cats are fond of birds (ha). 
+  Dogs actually have a negative effect on recorded bird count. Their coefficient of 0.925 brings down the predicted bird count, and none of the coefficients of the housing_density * dog interaction are large enough to cover this difference. The question is then, why do cats have a positive effect but dogs don't? Perhaps dogs aren't drawn to high bird count feeders like cats may be, but also, dogs are simply louder and more hyper than cats.
+  Something interesting worth noting is the best performing sites have coexistence between these mammals... I suppose if an environment has the capacity for various animal types it likely has room for solid bird feeders as well!
+  
+Third, housing density.
+  This one is quite simple to see and understand ; the more urban you get, the less birds you should expect to count. Many birds enjoy eating in more peaceful environments, which, due to presence of humans and other animals, is harder to attain as you get more urban. 
+  
+Finally, interactions. 
+  Looking at coefficients, we can see all animal types have an increasingly positive effect on bird count as you get more urban. This is likely due to the same reasons as animal coexistence; not all urban/suburban homes have adequate space for a bird feeder, but if other animals are present the home is more likely to be suitable. 
+  
+
+
+```{r}
+
+
+#reading in site data.
+#Merging on LOC_ID. cats, dogs, squirrels, and humans are all factors. 
+#Housing_density is categorical
+site = read.csv("sites.csv",header=TRUE)
+site = site[c("loc_id","proj_period_id","squirrels","cats","dogs","humans","housing_density")]
+names(site)[names(site)=="loc_id"] <- "LOC_ID"
+names(site)[names(site)=="proj_period_id"] <- "PROJ_PERIOD_ID"
+```
+
+```{r}
+
+#merging on location ID and period
+site_data = merge(birds,site,by=c("LOC_ID","PROJ_PERIOD_ID"))
+
+#clearing NA values
+site_data = na.omit(site_data)
+
+site_data$housing_density = as.factor(site_data$housing_density)
+
+
+#We have one horrible outlier that was likely the result of misinput. 
+#It says that 260 million birds were recorded at a site over the year...
+#the next closest is 10 thousand.
+site_data = site_data[!site_data$count == 266667128,]
+```
+
+```{r}
+#let's make some variables
+site_data$animal_type = as.factor(
+  ifelse(site_data$squirrels & site_data$dogs & site_data$cats, 'all',
+         ifelse(site_data$squirrels & site_data$dogs & !site_data$cats, 'no cat',
+                if_else(site_data$squirrels & !site_data$dogs & site_data$cats, 'no dog',
+                        if_else(!site_data$squirrels & site_data$dogs & site_data$cats,'no squirrel',
+                                if_else(site_data$squirrels & !site_data$dogs & !site_data$cats, "squirrel",
+                                        if_else(!site_data$squirrels & site_data$dogs & !site_data$cats, "dog",
+                                                if_else(!site_data$squirrels & !site_data$dogs & site_data$cats, 'cat',
+                                                        'none'))))))))
+
+site_data_grouped = site_data %>%
+  group_by(animal_type,housing_density) %>%
+  summarise(count=mean(count),
+            .groups = 'drop')
+  
+site_data_grouped
+```
+
+
+## Actual Graphs
+
+
+Checking for interactions
+
+```{r}
+squirrel = subset(site_data, site_data$squirrels == 1)
+squirrel = squirrel %>%
+  group_by(PROJ_PERIOD_ID,housing_density) %>%
+  summarise(count=mean(count),
+            .groups="drop")
+
+cat = subset(site_data, site_data$cats == 1)
+cat = cat %>%
+  group_by(PROJ_PERIOD_ID,housing_density) %>%
+  summarise(count=mean(count),
+            .groups="drop")
+
+dog = subset(site_data, site_data$dogs == 1)
+dog = dog %>%
+  group_by(PROJ_PERIOD_ID,housing_density) %>%
+  summarise(count=mean(count),
+            .groups="drop")
+
+squirrel$group = "squirrel"
+cat$group = "cat"
+dog$group = "dog"
+to_plot = rbind(squirrel,cat,dog)
+
+ggplot(to_plot, aes(x = PROJ_PERIOD_ID, y = count, color = group, fill = group)) +
+  geom_point() +
+  facet_wrap(~housing_density) +
+  scale_color_manual(name = "Animal Type", values = c("squirrel" = "#56B4E9", "cat" = "#E69F00", "dog" = "#009E73")) +
+  scale_fill_manual(name = "Animal Type", values = c("squirrel" = "#56B4E9", "cat" = "#E69F00", "dog" = "#009E73")) +
+  labs(
+    title = "Average Count Across Years by Animal Type and Housing Density",
+    x = "Year",
+    y = "Average Count"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 12),
+    legend.title = element_text(size = 12)
+  )
+```
+
+
+```{r}
+yearly_summary <- site_data %>%
+  group_by(PROJ_PERIOD_ID, housing_density) %>%
+  summarise(count = mean(count), na.rm = TRUE,
+            .groups="drop") # log1p handles
+
+ggplot(yearly_summary, aes(x = PROJ_PERIOD_ID, y = count, group = housing_density,color=housing_density)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Log-Transformed Mean Bird Counts Over 4 Years by Housing Density",
+    x = "Year",
+    y = "Log-Transformed Mean Bird Count"
+  ) +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 12))
+  
+```
+
+
+
+```{r}
+library(MASS)
+library(broom)
+
+bird.nb = glm.nb(count ~ PROJ_PERIOD_ID + housing_density+ squirrels + dogs + cats, data = site_data)
+fit.df = data.frame(fitted = fitted.values(bird.nb))
+
+site_data$fitted = fitted.values(bird.nb)
+
+```
+
+
+General dist looks the same
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+head(site_data)
+```
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+squirrel_count <- site_data %>% filter(squirrels == 1) %>% nrow()
+cat_count <- site_data %>% filter(cats == 1) %>% nrow()
+dog_count <- site_data %>% filter(dogs == 1) %>% nrow()
+
+housing_density_count <- site_data %>%
+  filter(housing_density %in% c(1, 2, 3, 4)) %>%
+  group_by(housing_density) %>%
+  summarise(count = n())
+
+
+housing_per_animal <- site_data %>%
+  filter(squirrels == 1 | cats == 1 | dogs == 1) %>%
+  group_by(housing_density) %>%
+  summarise(
+    squirrels = sum(squirrels == 1),
+    cats = sum(cats == 1),
+    dogs = sum(dogs == 1)
+  ) %>%
+  pivot_longer(cols = c(squirrels, cats, dogs),
+               names_to = "animal", values_to = "count")
+
+
+colorblind_palette <- c("#E69F00", "#56B4E9", "#009E73") # Orange, Blue, Green
+
+
+ggplot(housing_per_animal, aes(x = factor(housing_density), y = count, fill = animal)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = colorblind_palette) +
+  labs(title = "Housing Density per Animal",
+       x = "Housing Density",
+       y = "Count",
+       fill = "Animal") +
+  theme_minimal()
+
+
+animal_combinations <- site_data %>%
+  group_by(squirrels, cats, dogs) %>%
+  summarise(count = n(), .groups = "drop")
+
+# 5. Print Results
+print(paste("Squirrel Count (==1):", squirrel_count))
+print(paste("Cat Count (==1):", cat_count))
+print(paste("Dog Count (==1):", dog_count))
+
+print("Housing Density Count:")
+print(housing_density_count)
+
+print("Unique Animal Combinations:")
+print(animal_combinations)
+
+
+```
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+
+animal_summary <- site_data %>%
+  group_by(animal_type) %>%
+  summarise(mean_bird_count = mean(count, na.rm = TRUE), .groups = "drop")
+
+
+ggplot(animal_summary, aes(x = reorder(animal_type, mean_bird_count), y = mean_bird_count, fill = animal_type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "Set2", name = "Animal Combinations") +  # Update legend title
+  labs(
+    title = "Mean Bird Count by Animal Combination",  # Update chart title
+    x = "Animal Types (Combinations)",
+    y = "Mean Bird Count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+```
+
+
+
 
