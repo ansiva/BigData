@@ -5,3 +5,4 @@ Using exploratory data analysis, data from bird counts and site conditions were 
 Results showed that bird counts decrease in urban areas but increase with the presence of squirrels. Cats had a smaller positive effect, while dogs had a negative influence. Temporal analysis revealed a significant drop in bird counts post-2022. These findings provide actionable insights to improve feeder designs and support bird conservation.
 
 
+Link to the big datasets:https://feederwatch.org/explore/raw-dataset-requests/
