@@ -1,6 +1,6 @@
 # Instacart Customer Engagement Analysis
 
-A Group 11 data architecture capstone for BANA 5090 that uses **SQLite, Python, and Tableau** to identify customers returning more slowly than customers with similar historical shopping behavior.
+A customer analytics project using **SQLite, Python, and Tableau** to identify customers returning more slowly than customers with similar historical shopping behavior.
 
 ## Business question
 
@@ -50,27 +50,27 @@ The ratio thresholds represent historical P75 and P90 alert thresholds, not pred
 ## Project files
 
 ```text
-instacart-customer-engagement-analysis/
+Instacart Customer Engagement Analysis/
 ├── README.md
 ├── requirements.txt
-├── SQL_Group_11_Capstone/
-│   ├── SQL_Scripts/                 # Five ordered SQL scripts
+├── sql-analysis/
+│   ├── scripts/                 # Five ordered SQL scripts
 │   ├── SQL_Data_Dictionary.xlsx
 │   ├── SQL_Schema.pdf
 │   └── SQL_README.txt
-├── Python_Group_11_Capstone/
-│   ├── Group_11Capstone.ipynb
-│   ├── Csv_Files/                   # Four SQL exports; no header row
-│   ├── Output_Tableau_CSVs/         # Generated CSVs with headers
+├── python-analysis/
+│   ├── customer_engagement_analysis.ipynb
+│   ├── input-data/                   # Four SQL exports; no header row
+│   ├── tableau-outputs/         # Generated CSVs with headers
 │   ├── Dependency_List.txt
 │   └── Python_README.txt
-├── Tableau_Ready_Extract/
+├── tableau-dashboard/
 │   ├── final_customer_decision_tableau.csv
 │   ├── segment_summary_tableau.csv
 │   ├── Tableau_Extract.jpeg
 │   ├── Tableau_README.txt
-│   └── Optional_Dashboard/          # Packaged Tableau workbook (.twbx)
-└── Slides/                         # Original capstone presentation
+│   └── workbook/          # Packaged Tableau workbook (.twbx)
+└── presentation/                         # Original capstone presentation
 ```
 
 Original component documentation is retained as submission context. The instructions below reflect the portable notebook in this repository; the original Python README describes its earlier Google Colab setup.
@@ -85,12 +85,12 @@ From this project folder:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-jupyter lab Python_Group_11_Capstone/Group_11Capstone.ipynb
+jupyter lab python-analysis/customer_engagement_analysis.ipynb
 ```
 
 On Windows, activate the environment with `.venv\Scripts\activate`.
 
-Run the notebook from top to bottom. It resolves inputs from `Python_Group_11_Capstone/Csv_Files` when launched from the project root or notebook folder, and writes to `Python_Group_11_Capstone/Output_Tableau_CSVs`. Adjust `PROJECT_DIR` if using a different working directory. The four input CSVs are **headerless**; the notebook supplies their column names explicitly.
+Run the notebook from top to bottom. It resolves inputs from `python-analysis/input-data` when launched from the project root or notebook folder, and writes to `python-analysis/tableau-outputs`. Adjust `PROJECT_DIR` if using a different working directory. The four input CSVs are **headerless**; the notebook supplies their column names explicitly.
 
 The notebook checks customer uniqueness, row counts, source completeness, four SQL/Python metric comparisons, segment-risk agreement, and merge integrity. Its final outputs are:
 
@@ -109,13 +109,13 @@ The setup script was written for the submission's imported table layout. Review 
 4. `04_customer_segmentation.sql`
 5. `05_engagement_analysis_and_final_output.sql`
 
-Review each script's checkpoints, then export `submission_customer_decision`, `submission_segment_context`, `python_validation_input`, and `sql_validation_reference` as headerless CSVs into the notebook's `Csv_Files` folder.
+Review each script's checkpoints, then export `submission_customer_decision`, `submission_segment_context`, `python_validation_input`, and `sql_validation_reference` as headerless CSVs into the notebook's `input-data` folder.
 
 The original submission's database archive is approximately **2.65 GB** and expands to a roughly **7.45 GB** SQLite database. It remains outside this GitHub package. Use the original archive locally if available; the included exports are sufficient for the Python workflow.
 
 ## View the Tableau deliverables
 
-Connect Tableau to the two CSVs in `Tableau_Ready_Extract`, or open the packaged workbook in `Optional_Dashboard` with a compatible Tableau application. Local file connections may need to be updated. The JPEG documents the submitted Tableau work; this folder does not contain a standalone `.hyper` extract.
+Connect Tableau to the two CSVs in `tableau-dashboard`, or open the packaged workbook in `workbook` with a compatible Tableau application. Local file connections may need to be updated. The JPEG documents the submitted Tableau work; this folder does not contain a standalone `.hyper` extract.
 
 ## Limitations
 
